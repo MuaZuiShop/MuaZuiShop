@@ -59,7 +59,7 @@ All services are orchestrated using Docker Compose and reside within a unified c
 This project heavily relies on Git Submodules. It is mandatory to include the recursive flag during the initial clone to fetch the source code of all child services.
 
 ```bash
-git clone --recursive [https://github.com/MuaZuiShop/MuaZuiShop.git](https://github.com/MuaZuiShop/MuaZuiShop.git)
+git clone --recursive https://github.com/MuaZuiShop/MuaZuiShop.git
 cd MuaZuiShop
 ```
 
