@@ -107,7 +107,7 @@ jobs:
 
       - name: Upload Report
         if: always() && steps.check-type.outputs.is_maven == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: report-${{ matrix.module }}
           path: |
