@@ -1,0 +1,115 @@
+name: Submodules CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+jobs:
+  trufflehog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ""
+          head: ${{ github.ref_name }}
+          extra_args: --only-verified
+
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.filter-submodules.outputs.modules }}
+      any_changed: ${{ steps.filter-submodules.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get all changed items
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+
+      - name: Filter ONLY valid submodules
+        id: filter-submodules
+        run: |
+          ALL_CHANGED="${{ steps.changed-files.outputs.all_changed_files }}"
+          SUBMODULES=()
+          
+          for item in $ALL_CHANGED; do
+            if grep -q "path = $item" .gitmodules 2>/dev/null; then
+              SUBMODULES+=("\"$item\"")
+            fi
+          done
+          
+          if [ ${#SUBMODULES[@]} -eq 0 ]; then
+            echo "any_changed=false" >> $GITHUB_OUTPUT
+            echo "modules=[]" >> $GITHUB_OUTPUT
+          else
+            JSON_ARRAY="[$(IFS=,; echo "${SUBMODULES[*]}")]"
+            echo "any_changed=true" >> $GITHUB_OUTPUT
+            echo "modules=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check project type
+        id: check-type
+        run: |
+          if [ -f "${{ matrix.module }}/pom.xml" ]; then
+            echo "is_maven=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_maven=false" >> $GITHUB_OUTPUT
+            echo "No pom.xml found in ${{ matrix.module }}. Skipping Maven build."
+          fi
+
+      - name: Set up JDK 21
+        if: steps.check-type.outputs.is_maven == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+          cache-dependency-path: '${{ matrix.module }}/pom.xml'
+
+      - name: Build, Test and Scan Submodule
+        if: steps.check-type.outputs.is_maven == 'true'
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.PER_GITHUB_TOKEN }}
+        run: |
+          cd ${{ matrix.module }}
+          mvn clean verify -s settings-docker.xml checkstyle:check spotbugs:check jacoco:check -Djacoco.line.ratio=0.70
+
+      - name: Upload Report
+        if: always() && steps.check-type.outputs.is_maven == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.module }}
+          path: |
+            ${{ matrix.module }}/target/site/jacoco/
+            ${{ matrix.module }}/target/spotbugsXml.xml

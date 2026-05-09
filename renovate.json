@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+
+  "enabledManagers": ["git-submodules"],
+  "dependencyDashboard": true,
+
+  "labels": ["bot", "update", "submodule"],
+  "assignees": ["QuyDang1108"],
+
+  "packageRules": [
+    {
+      "matchDatasources": ["git-submodules"],
+      "commitMessageTopic": "submodule {{depName}}",
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ]
+}
