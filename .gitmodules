@@ -1,15 +1,20 @@
 [submodule "api-gateway"]
 	path = api-gateway
 	url = https://github.com/MuaZuiShop/api-gateway.git
+	branch = main
 [submodule "auth-service"]
 	path = auth-service
 	url = https://github.com/MuaZuiShop/auth-service.git
+	branch = main
 [submodule "common-libraries"]
 	path = common-libraries
 	url = https://github.com/MuaZuiShop/common-libraries.git
+	branch = main
 [submodule "customer-service"]
 	path = customer-service
 	url = https://github.com/MuaZuiShop/customer-service.git
+	branch = main
 [submodule "eureka-server"]
 	path = eureka-server
 	url = https://github.com/MuaZuiShop/eureka-server.git
+	branch = main
