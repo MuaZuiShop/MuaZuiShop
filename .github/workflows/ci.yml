@@ -46,21 +46,29 @@ jobs:
         id: filter-submodules
         run: |
           ALL_CHANGED="${{ steps.changed-files.outputs.all_changed_files }}"
+          echo "Các file/thư mục bị thay đổi trong PR này: $ALL_CHANGED"
+          
           SUBMODULES=()
           
           for item in $ALL_CHANGED; do
-            if grep -q "path = $item" .gitmodules 2>/dev/null; then
+            # Sử dụng Regex để bất chấp khoảng trắng, khoảng Tab (\t) hoặc viết liền
+            if grep -E -q "^[[:space:]]*path[[:space:]]*=[[:space:]]*$item$" .gitmodules 2>/dev/null; then
+              echo "Phù hợp: '$item' là một Submodule hợp lệ."
               SUBMODULES+=("\"$item\"")
+            else
+              echo "Bỏ qua: '$item' không phải là Submodule."
             fi
           done
           
           if [ ${#SUBMODULES[@]} -eq 0 ]; then
             echo "any_changed=false" >> $GITHUB_OUTPUT
             echo "modules=[]" >> $GITHUB_OUTPUT
+            echo "KẾT LUẬN: Không có Submodule nào bị thay đổi. Sẽ SKIP Job Build!"
           else
             JSON_ARRAY="[$(IFS=,; echo "${SUBMODULES[*]}")]"
             echo "any_changed=true" >> $GITHUB_OUTPUT
             echo "modules=$JSON_ARRAY" >> $GITHUB_OUTPUT
+            echo "KẾT LUẬN: Sẽ CHẠY Job Build cho các modules: $JSON_ARRAY"
           fi
 
   build:
